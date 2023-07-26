@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  gargravarr:
+    build: .
+    environment:
+        - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    restart: on-failure
+    command: ["python", "main.py"]
