@@ -1,6 +1,7 @@
 import json
 import time
 import openai
+import logging
 from actions import *
 
 
@@ -12,7 +13,7 @@ class EntryHandler:
     def handle(self, entry):
         action = self.handle_entry_retry(entry)
         if action is None:
-            print(f"Entry {entry.link} ignored.")
+            logging.warning(f"Entry {entry.link} ignored.")
         else:
             self.action_handler_factory.handle(action, entry)
 
@@ -21,8 +22,7 @@ class EntryHandler:
             action = self.handle_entry(entry)
             time.sleep(5)
         except Exception as e:
-            print(e)
-            print("failed, sleeping for 3 minutes")
+            logging.exception(f"Failed to handle entry {entry.link}: {e}")
             time.sleep(3 * 60)
 
             action = self.handle_entry(entry)
@@ -79,19 +79,18 @@ class EntryHandler:
             "content": content
         })
 
-        print(entry.title)
+        logging.info(f"Handling entry {entry.link}")
 
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=messages,
             functions=functions
         )
-        print(entry.link)
 
         func_name = response.choices[0]["message"]["function_call"]["name"]
+        logging.debug(f"Action: {func_name}")
 
         if func_name == "more_info" and entry.has_key("downloaded_body"):
-            print(f"Action: {func_name}")
             messages.append({
                 "role": "user",
                 "content": entry["downloaded_body"]
@@ -106,8 +105,6 @@ class EntryHandler:
         output = json.loads(response.choices[0]["message"]["function_call"]["arguments"])
         func_name = response.choices[0]["message"]["function_call"]["name"]
 
-        print(f"Action: {func_name}")
-
         if func_name == "ignore":
             return ActionIgnore(**output)
         elif func_name == "high_risk":
@@ -119,6 +116,5 @@ class EntryHandler:
         elif func_name == "add_to_watch_list":
             return ActionAddToWatchList(**output)
         else:
-            print("unknown")
-            print(output)
+            logging.warning(f"Unknown function {func_name}")
             return None

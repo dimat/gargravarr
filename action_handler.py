@@ -1,3 +1,4 @@
+import logging
 import requests
 from actions import *
 
@@ -21,13 +22,12 @@ class BaseActionHandler:
             'chat_id': self.chat_id,
             'text': escape_markdown(message)
         })
-        print(response.json())
+        logging.debug(f"Telegram response: {response.status_code} {response.json()}")
         return response.json()
 
     def handle_action(self, action: BaseModel, entry):
-        print(f"Handling action {action} for entry {entry.link}")
-        print(action.model_dump())
-        print("----------------------------------\n\n")
+        logging.info(f"Handling action {action} for entry {entry.link}")
+        logging.debug(f"Action model dump: {action.model_dump()}")
 
 
 class IgnoreHandler(BaseActionHandler):

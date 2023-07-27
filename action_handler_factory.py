@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from action_handler import *
 from actions import *
+import logging
 
 
 class ActionHandlerFactory:
@@ -18,6 +19,6 @@ class ActionHandlerFactory:
         handler = self.handlers.get(action_type)
 
         if handler is None:
-            print(f"No handler found for action type {action_type.__name__}. The action is ignored.")
+            logging.warning(f"No handler found for action type {action_type.__name__}. The action is ignored.")
         else:
             handler.handle_action(action, entry)
