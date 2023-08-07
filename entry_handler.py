@@ -87,7 +87,12 @@ class EntryHandler:
             functions=functions
         )
 
-        func_name = response.choices[0]["message"]["function_call"]["name"]
+        function_call = response.choices[0]["message"]["function_call"] if "function_call" in response.choices[0]["message"] else None
+        if function_call is None:
+            logging.warning(f"No function call found in response: {response}")
+            return None
+
+        func_name = function_call["name"]
         logging.debug(f"Action: {func_name}")
 
         if func_name == "more_info" and entry.has_key("downloaded_body"):

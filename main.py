@@ -4,6 +4,8 @@ import openai
 import logging
 import schedule
 import time
+
+from action_handler import TelegramMessageSender, DiscordMessageSender, AggregateSender
 from action_handler_factory import ActionHandlerFactory
 from entry_handler import EntryHandler
 from entry_registry import EntryRegistry
@@ -25,17 +27,36 @@ def scan():
 
     validate_config(config)
 
+    senders = []
+    if "telegram" in config["notify"]:
+        cfg = config["notify"]["telegram"]
+        if cfg["token"] is None:
+            raise Exception("Telegram token is not configured")
+        if cfg["chat_id"] is None:
+            raise Exception("Telegram chat ID is not configured")
+        senders.append(TelegramMessageSender(cfg["token"], cfg["chat_id"]))
+
+    if "discord" in config["notify"]:
+        cfg = config["notify"]["discord"]
+        senders.append(DiscordMessageSender(cfg["webhook"]))
+
+    if len(senders) == 0:
+        raise Exception("No notification method is configured")
+
+    sender = AggregateSender(senders)
+
     prompt = config["openai"]["prompt"]
     openai.api_key = config["openai"]["api_key"]
 
     registry = EntryRegistry(config["rss_cache"]["directory"])
-    action_handler_factory = ActionHandlerFactory(config["telegram"]["token"], config["telegram"]["chat_id"])
+    action_handler_factory = ActionHandlerFactory(sender)
 
     entry_handler = EntryHandler(action_handler_factory, prompt)
 
     for name in config["sources"]["rss"]:
         source = config["sources"]["rss"][name]
-        RSSParser(source["url"], name, registry, source["selector"]).parse(entry_handler.handle)
+        parser = RSSParser(source["url"], name, registry, source["selector"])
+        parser.parse(entry_handler.handle)
 
 
 def validate_config(config):
@@ -49,10 +70,6 @@ def validate_config(config):
         raise Exception("OpenAI API key is not configured")
     if config["openai"]["prompt"] is None:
         raise Exception("OpenAI prompt is not configured")
-    if config["telegram"]["token"] is None:
-        raise Exception("Telegram token is not configured")
-    if config["telegram"]["chat_id"] is None:
-        raise Exception("Telegram chat ID is not configured")
 
 
 def main():
@@ -60,7 +77,7 @@ def main():
     Initialize the application and start the scheduler.
     """
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     scan()
 

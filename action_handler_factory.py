@@ -5,13 +5,13 @@ import logging
 
 
 class ActionHandlerFactory:
-    def __init__(self, telegram_token, chat_id):
+    def __init__(self, sender):
         self.handlers = {
-            ActionIgnore: IgnoreHandler(telegram_token, chat_id),
-            ActionHighRisk: HighRiskHandler(telegram_token, chat_id),
-            ActionLowRisk: LowRiskHandler(telegram_token, chat_id),
-            ActionOpportunity: OpportunityHandler(telegram_token, chat_id),
-            ActionAddToWatchList: AddToWatchListHandler(telegram_token, chat_id),
+            ActionIgnore: IgnoreHandler(),
+            ActionHighRisk: HighRiskTelegramHandler(sender),
+            ActionLowRisk: LowRiskTelegramHandler(sender),
+            ActionOpportunity: OpportunityTelegramHandler(sender),
+            ActionAddToWatchList: AddToWatchListHandler(),
         }
 
     def handle(self, action: BaseModel, entry):

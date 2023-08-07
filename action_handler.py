@@ -11,11 +11,30 @@ def escape_markdown(text):
 
 
 class BaseActionHandler:
+    """
+    Base class for action handlers
+    """
+    def handle_action(self, action: BaseModel, entry):
+        pass
+
+
+class BaseMessageSender:
+    """
+    Base class for message senders
+    """
+    def send_message(self, message):
+        pass
+
+
+class TelegramMessageSender(BaseMessageSender):
+    """
+    Telegram message sender
+    """
     def __init__(self, telegram_token, chat_id):
         self.telegram_token = telegram_token
         self.chat_id = chat_id
 
-    def send_telegram_message(self, message):
+    def send_message(self, message):
         url = 'https://api.telegram.org/bot' + self.telegram_token + '/sendMessage'
         response = requests.post(url, json={
             'parse_mode': 'Markdown',
@@ -25,34 +44,72 @@ class BaseActionHandler:
         logging.debug(f"Telegram response: {response.status_code} {response.json()}")
         return response.json()
 
+
+class DiscordMessageSender(BaseMessageSender):
+    """
+    Discord message sender
+    """
+    def __init__(self, webhook_url):
+        self.webhook_url = webhook_url
+
+    def send_message(self, message):
+        response = requests.post(self.webhook_url, json={
+            'content': message
+        })
+        logging.debug(f"Discord response: {response.status_code}")
+        return response.json()
+
+
+class AggregateSender(BaseMessageSender):
+    """
+    Aggregate message sender
+    """
+    def __init__(self, senders):
+        self.senders = senders
+
+    def send_message(self, message):
+        for sender in self.senders:
+            sender.send_message(message)
+
+
+class BaseSenderActionHandler(BaseActionHandler):
+    """
+    Base class for Telegram action handlers
+    """
+    def __init__(self, sender):
+        self.sender = sender
+
+    def message(self, action: BaseModel, entry) -> str:
+        return ""
+
     def handle_action(self, action: BaseModel, entry):
         logging.info(f"Handling action {action} for entry {entry.link}")
         logging.debug(f"Action model dump: {action.model_dump()}")
+        message = self.message(action, entry)
+        if message:
+            try:
+                self.sender.send_message(message)
+            except Exception as e:
+                logging.error(f"Failed to send message: {e}")
 
 
 class IgnoreHandler(BaseActionHandler):
     pass
 
 
-class HighRiskHandler(BaseActionHandler):
-    def handle_action(self, action: ActionHighRisk, entry):
-        BaseActionHandler.handle_action(self, action, entry)
-        message = f"🚨🚨🚨High Risk: {action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
-        self.send_telegram_message(message)
+class HighRiskTelegramHandler(BaseSenderActionHandler):
+    def message(self, action: ActionHighRisk, entry):
+        return f"🚨🚨🚨High Risk: {action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
 
 
-class LowRiskHandler(BaseActionHandler):
-    def handle_action(self, action: ActionLowRisk, entry):
-        BaseActionHandler.handle_action(self, action, entry)
-        message = f"⚠️Low Risk:{action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
-        self.send_telegram_message(message)
+class LowRiskTelegramHandler(BaseSenderActionHandler):
+    def message(self, action: ActionLowRisk, entry):
+        return f"⚠️Low Risk:{action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
 
 
-class OpportunityHandler(BaseActionHandler):
-    def handle_action(self, action: ActionOpportunity, entry):
-        BaseActionHandler.handle_action(self, action, entry)
-        message = f"🤩 Opportunity: {action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
-        self.send_telegram_message(message)
+class OpportunityTelegramHandler(BaseSenderActionHandler):
+    def message(self, action: ActionOpportunity, entry):
+        return f"🤩 Opportunity: {action.reason}\n\nAffected networks: {', '.join(action.affected_networks)}\n\n{entry.link}"
 
 
 class AddToWatchListHandler(BaseActionHandler):

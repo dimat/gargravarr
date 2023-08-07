@@ -31,9 +31,13 @@ openai:
     - add to watch list: the news is relevant and you need to monitor it. Please explain briefly what the risk is and if any action or additional monitoring should be done.
     - more information: at first you are given a summary of the news, then you can read the full article if you need more information.
 
-telegram:
-    token: 
-    chat_id: 
+notify:
+  discord:
+    webhook:
+      
+  telegram:
+      token: 
+      chat_id: 
 
 sources:
   rss:
